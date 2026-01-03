@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI CV Scoring Demo</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; max-width: 800px; }
+  textarea, input { width: 100%; padding: 8px; margin-bottom: 12px; }
+  button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+  .result { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px; }
+  .strong { color: green; }
+  .gap { color: red; }
+</style>
+</head>
+<body>
+
+<h1>AI CV Scoring Demo</h1>
+
+<label>Paste CV text:</label>
+<textarea id="cv" rows="10" placeholder="Paste candidate CV here"></textarea>
+
+<label>Enter must-have skills (comma separated):</label>
+<input type="text" id="skills" placeholder="e.g. CRM management, B2B sales, Pipeline forecasting">
+
+<button id="scoreBtn">Score Candidate</button>
+
+<div id="results" class="result"></div>
+
+<script>
+document.getElementById("scoreBtn").addEventListener("click", async () => {
+  const cv = document.getElementById("cv").value;
+  const skillsInput = document.getElementById("skills").value;
+
+  if (!cv || !skillsInput) { alert("Please enter CV text and skills."); return; }
+
+  const skills = skillsInput.split(",").map(s => s.trim()).filter(Boolean);
+  document.getElementById("results").innerHTML = "Scoring...";
+
+  try {
+    const response = await fetch("/score", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cv, skills })
+    });
+    const data = await response.json();
+
+    let html = `<h2>Overall Score: ${data.overall_score}</h2>`;
+    html += "<h3>Breakdown:</h3><ul>";
+    data.breakdown.forEach(b => { html += `<li>${b.skill}: ${b.result}</li>`; });
+    html += "</ul>";
+
+    html += "<h3>Strengths:</h3><ul>";
+    data.summary.strengths.forEach(s => html += `<li class='strong'>${s}</li>`);
+    html += "</ul>";
+
+    html += "<h3>Gaps:</h3><ul>";
+    data.summary.gaps.forEach(g => html += `<li class='gap'>${g}</li>`);
+    html += "</ul>";
+
+    document.getElementById("results").innerHTML = html;
+
+  } catch (err) {
+    document.getElementById("results").innerHTML = "Error scoring candidate: " + err;
+  }
+});
+</script>
+
+</body>
+</html>
