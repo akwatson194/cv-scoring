@@ -40,26 +40,44 @@ function calculateScore(results) {
 
 // API endpoint
 app.post("/score", async (req, res) => {
-  const { skills, cv } = req.body;
-  if (!skills || !cv) return res.status(400).json({ error: "Missing skills or CV" });
+  try {
+    const { skills, cv } = req.body;
 
-  const results = [];
-  for (const skill of skills) {
-    const verdict = await callAI(skill, cv);
-    results.push(verdict);
-  }
-
-  const score = calculateScore(results);
-  const breakdown = skills.map((s, i) => ({ skill: s, result: results[i] }));
-
-  res.json({
-    overall_score: score,
-    breakdown,
-    summary: {
-      strengths: breakdown.filter(b => b.result === "FULL").map(b => b.skill),
-      gaps: breakdown.filter(b => b.result !== "FULL").map(b => b.skill)
+    if (!skills || !cv) {
+      console.error("Request missing skills or CV:", req.body);
+      return res.status(400).json({ error: "Missing skills or CV" });
     }
-  });
+
+    const results = [];
+    for (const skill of skills) {
+      let verdict = "NO"; // default in case AI fails
+      try {
+        verdict = await callAI(skill, cv);
+      } catch (err) {
+        console.error(`AI call failed for skill "${skill}":`, err.message);
+      }
+      results.push(verdict);
+    }
+
+    const score = calculateScore(results);
+    const breakdown = skills.map((s, i) => ({ skill: s, result: results[i] }));
+
+    const response = {
+      overall_score: score,
+      breakdown,
+      summary: {
+        strengths: breakdown.filter(b => b.result === "FULL").map(b => b.skill),
+        gaps: breakdown.filter(b => b.result !== "FULL").map(b => b.skill)
+      }
+    };
+
+    console.log("Score response:", JSON.stringify(response, null, 2));
+    res.json(response);
+
+  } catch (err) {
+    console.error("Unexpected error in /score:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
